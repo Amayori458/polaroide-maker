@@ -1,0 +1,9 @@
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
+Thumbs.db
+*.log
+# executável vai como Release do GitHub, não no repositório
+download/*.exe
