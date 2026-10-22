@@ -22,11 +22,22 @@ Tem três modos:
   ali e funde tudo exatamente como ficaria no Photoshop — sem precisar
   ajustar cada foto na mão.
 - **Grade simples**: pra produtos que são só várias fotos lado a lado numa
-  folha, sem nenhuma arte de moldura por trás (ex: BOLA, Imã 15x21 novo).
+  folha, sem nenhuma arte de moldura por trás (ex: BOLA, Botão, Imã 15x21 novo).
   Você digita o tamanho da folha, quantas colunas/linhas, o tamanho de cada
   foto e (se tiver) a borda entre elas — o programa monta a grade sozinho.
-  Já vem com atalhos pros produtos BOLA e Imã 15x21 novo com os números
-  tirados direto do painel "Album Info" do Smart Album.
+  Já vem com atalhos pros produtos BOLA, Botão e Imã 15x21 novo com os
+  números tirados direto do Smart Album. Cada atalho também define o
+  encaixe e a rotação padrão: BOLA (foto 6,6x6,6, 0,5 cm de espaço entre
+  elas) preenche e corta, sem girar; Botão (foto 5,6x5,6) encaixa a foto
+  inteira, sem girar; Imã 15x21 novo encaixa inteira e gira as fotos em pé.
+- **Folha sempre 21,6 x 15,2 cm** (o "15x21" do dia a dia): todos os
+  atalhos já saem nesse tamanho, e as folhas de ímã em PSD (20,3 x 15,2)
+  ganham margem branca até chegar nele, sem mudar o tamanho dos ímãs.
+- **Reforço escuro nas linhas de corte** (todos os itens de ímã: Imã 15x21
+  novo e as Folhas Ima 4x em PSD): um trecho de 0,6 cm da própria linha, em
+  preto, formando "L" nos cantos, "T" nas bordas e "+" no meio — marca onde
+  apoiar a régua e some junto com o corte. Vem ligado nesses itens; dá pra
+  ligar/desligar em "Reforçar linhas onde se encontram".
 
 ## Baixar pronto (sem instalar Python)
 
@@ -116,7 +127,8 @@ sobrarem em branco.
 
 ### Modo grade simples
 
-4. **Atalhos**: clique em **BOLA (6 fotos)** ou **Ima 15x21 novo (4 fotos)**
+4. **Atalhos**: clique em **BOLA (6 fotos)**, **BOTAO (6 fotos)** ou
+   **Ima 15x21 novo (4 fotos)**
    pra já preencher os campos com os números certos, ou digite os seus
    próprios:
    - **Folha**: tamanho total da folha de impressão (cm).

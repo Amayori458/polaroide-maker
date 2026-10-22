@@ -45,6 +45,14 @@ VALID_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".webp"}
 PSD_RESOLUTION_FIXED_POINT = 65536.0
 PLACEHOLDER_NAMES = {"foto", "photo", "janela", "window", "picture", "imagem"}
 EXPORT_DPI = 300  # todo projeto e' exportado em 300 dpi, sempre
+# reforco escuro nos encontros das linhas de corte: um trecho da propria
+# linha (nao um ponto), fino o bastante pra sumir quando o ima e' cortado
+# em cima dela
+# a folha impressa e' sempre 21,6 x 15,2 cm (o "15x21" do dia a dia)
+SHEET_W_CM = 21.6
+SHEET_H_CM = 15.2
+CUT_MARK_ARM_CM = 0.6    # quanto cada braco do reforco se estende a partir do encontro
+CUT_MARK_WIDTH_CM = 0.02  # espessura do reforco (a linha normal tem 0,01)
 
 # Atalhos para as mascaras de ima polaroid ja prontas.
 PRESET_MASKS = {
@@ -58,14 +66,29 @@ PRESET_MASKS = {
 # com os numeros tirados direto do painel "Album Info" do Smart Album.
 PRESET_GRIDS = {
     "BOLA (6 fotos)": dict(
-        sheet_w="21", sheet_h="15", cols="3", rows="2",
-        photo_w="6,60", photo_h="6,71", border="0", gap="0",
+        sheet_w="21,6", sheet_h="15,2", cols="3", rows="2",
+        photo_w="6,6", photo_h="6,6", border="0", gap="0,5",
         guide_color="#FFFFFF", guide_width="0",
+        # bolinha: a foto e' recortada em circulo depois de impressa, entao
+        # preenche o quadrado todo (corta o excesso) e fica na posicao em
+        # que veio, sem girar; 0,5 cm de espaco entre uma bolinha e outra
+        fit="cover", rotate="0",
+    ),
+    # botao: foto de 5,6x5,6 cm dentro de uma celula de 6,6 (borda branca de
+    # 0,5 de cada lado = 1 cm de respiro entre os botoes pra faca circular),
+    # 3 colunas x 2 linhas na folha de 21,6x15,2 -- igual ao projeto "Bottan"
+    # do Smart Album. Encaixa a foto inteira e nao gira.
+    "BOTAO (6 fotos)": dict(
+        sheet_w="21,6", sheet_h="15,2", cols="3", rows="2",
+        photo_w="6,6", photo_h="6,6", border="0,5", gap="0",
+        guide_color="#FFFFFF", guide_width="0",
+        fit="contain", rotate="0",
     ),
     "Ima 15x21 novo (4 fotos)": dict(
-        sheet_w="20,3", sheet_h="15,2", cols="2", rows="2",
+        sheet_w="21,6", sheet_h="15,2", cols="2", rows="2",
         photo_w="9,93", photo_h="7,45", border="0,28", gap="0",
         guide_color="#B0B0B0", guide_width="0,01",
+        fit="contain", rotate="auto", marks=True,
     ),
 }
 
@@ -325,7 +348,7 @@ def make_masked_polaroid(image_path, mask, rotate_deg=0):
 # ----------------------------------------------------------- modo grade ----
 def build_grid_mask(sheet_w_cm, sheet_h_cm, cols, rows, photo_w_cm, photo_h_cm,
                      border_cm, gap_cm, dpi, bg_color="#FFFFFF",
-                     guide_color="#999999", guide_width_cm=0):
+                     guide_color="#999999", guide_width_cm=0, marks=False):
     """Monta uma 'mascara' sintetica pra uma grade simples de N fotos numa
     folha (sem nenhuma arte de moldura por baixo) -- devolve exatamente o
     mesmo formato de dicionario que load_psd_mask, entao todo o resto do
@@ -337,7 +360,12 @@ def build_grid_mask(sheet_w_cm, sheet_h_cm, cols, rows, photo_w_cm, photo_h_cm,
 
     `guide_width_cm`, se maior que 0, desenha uma linha fina (cor
     `guide_color`) em volta de cada celula -- o "risco" que marca onde uma
-    foto termina e a proxima comeca, pra servir de guia de corte."""
+    foto termina e a proxima comeca, pra servir de guia de corte.
+
+    `marks`, se verdadeiro (so' vale com celulas coladas), escurece (preto)
+    um trecho de cada linha da grade em volta de cada ponto onde elas se
+    encontram -- e' onde o cortador apoia a regua na producao. O reforco
+    fica em cima da propria linha, entao some junto com o corte."""
     sheet_w_px = cm_to_px(sheet_w_cm, dpi)
     sheet_h_px = cm_to_px(sheet_h_cm, dpi)
     cell_w = cm_to_px(photo_w_cm, dpi)
@@ -396,6 +424,24 @@ def build_grid_mask(sheet_w_cm, sheet_h_cm, cols, rows, photo_w_cm, photo_h_cm,
             by = margin_y + r * cell_h - half
             draw.rectangle([left - half, by, right - half + guide_px - 1, by + guide_px - 1], fill=guide_rgba)
 
+    if marks and gap_px == 0:
+        arm = cm_to_px(CUT_MARK_ARM_CM, dpi)
+        mark_px = max(2, cm_to_px(CUT_MARK_WIDTH_CM, dpi))
+        mhalf = mark_px // 2
+        left, right = margin_x, margin_x + cols * cell_w
+        top, bottom = margin_y, margin_y + rows * cell_h
+        black = (0, 0, 0, 255)
+        for r in range(rows + 1):
+            for c in range(cols + 1):
+                cx = margin_x + c * cell_w
+                cy = margin_y + r * cell_h
+                # bracos recortados nos limites da grade: no canto vira um
+                # "L", na borda um "T", no meio um "+"
+                draw.rectangle([max(left, cx - arm), cy - mhalf,
+                                min(right, cx + arm), cy - mhalf + mark_px - 1], fill=black)
+                draw.rectangle([cx - mhalf, max(top, cy - arm),
+                                cx - mhalf + mark_px - 1, min(bottom, cy + arm)], fill=black)
+
     return {
         "path": None,
         "canvas_size": (sheet_w_px, sheet_h_px),
@@ -412,7 +458,7 @@ def build_grid_mask(sheet_w_cm, sheet_h_cm, cols, rows, photo_w_cm, photo_h_cm,
             sheet_w_cm=sheet_w_cm, sheet_h_cm=sheet_h_cm,
             photo_w_cm=photo_w_cm, photo_h_cm=photo_h_cm,
             border_cm=border_cm, gap_cm=gap_cm, dpi=dpi, bg_color=bg_color,
-            guide_color=guide_color, guide_width_cm=guide_width_cm,
+            guide_color=guide_color, guide_width_cm=guide_width_cm, marks=marks,
         ),
     }
 
@@ -435,11 +481,93 @@ def regenerate_grid_for_count(mask, count):
                 params["photo_w_cm"], params["photo_h_cm"],
                 params["border_cm"], params["gap_cm"], params["dpi"],
                 params["bg_color"], guide_color=params["guide_color"],
-                guide_width_cm=params["guide_width_cm"],
+                guide_width_cm=params["guide_width_cm"], marks=params.get("marks", False),
             )
         except ValueError:
             continue
     return mask
+
+
+def detect_art_lines(frame_rgba):
+    """Acha as linhas cinza que o proprio PSD da folha ja traz desenhadas
+    (as de corte): devolve (xs, ys) com o centro, em pixels, de cada linha
+    vertical e horizontal que cruza a folha de ponta a ponta. So' olha
+    pixels opacos -- as janelas das fotos sao transparentes."""
+    import numpy as np
+    arr = np.array(frame_rgba.convert("RGBA")).astype(int)
+    opaque = arr[:, :, 3] > 0
+    gray = arr[:, :, :3].mean(axis=2)
+    line_px = opaque & (gray < 235)
+
+    def centers(axis):
+        n_opaque = opaque.sum(axis=axis)
+        n_line = line_px.sum(axis=axis)
+        is_line = (n_opaque > 0) & (n_line >= 0.9 * n_opaque) & (n_opaque >= 0.5 * opaque.shape[axis])
+        found, start = [], None
+        for i, v in enumerate(list(is_line) + [False]):
+            if v and start is None:
+                start = i
+            elif not v and start is not None:
+                found.append((start + i - 1) / 2)
+                start = None
+        return [round(c) for c in found]
+
+    return centers(0), centers(1)
+
+
+def prepare_sheet_mask(mask):
+    """Folha com varias fotos: a folha impressa e' sempre SHEET_W_CM x
+    SHEET_H_CM. Se o PSD for menor (ex: 20,3 x 15,2), aumenta a tela
+    com margem branca, centralizado -- o tamanho dos imas nao muda. Tambem
+    guarda onde estao as linhas de corte do PSD (art_lines) pra poder
+    reforca-las. Mascara de uma foto so' (ima avulso) passa direto."""
+    if len(mask["slots"]) < 2:
+        return mask
+    dpi = mask["dpi"]
+    cw, ch = mask["canvas_size"]
+    new_w = max(cw, cm_to_px(SHEET_W_CM, dpi))
+    new_h = max(ch, cm_to_px(SHEET_H_CM, dpi))
+    ox, oy = (new_w - cw) // 2, (new_h - ch) // 2
+    frame = mask["frame_rgba"]
+    xs, ys = detect_art_lines(frame)
+    if (new_w, new_h) != (cw, ch):
+        padded = Image.new("RGBA", (new_w, new_h), (255, 255, 255, 255))
+        padded.paste(frame, (ox, oy))  # sem mascara: copia tambem a transparencia das janelas
+        frame = padded
+    out = dict(mask)
+    out.update(
+        canvas_size=(new_w, new_h),
+        frame_rgba=frame,
+        slots=[(l + ox, t + oy, r + ox, b + oy) for l, t, r, b in mask["slots"]],
+        art_lines=([x + ox for x in xs], [y + oy for y in ys]),
+    )
+    return out
+
+
+def with_cut_marks(mask):
+    """Devolve uma copia da mascara com as linhas de corte do PSD reforcadas
+    em preto onde se encontram (L nos cantos, T nas bordas, + no meio) --
+    mesmo desenho do modo grade. Sem linhas detectadas, devolve igual."""
+    xs, ys = mask.get("art_lines", ([], []))
+    if len(xs) < 2 or len(ys) < 2:
+        return mask
+    dpi = mask["dpi"]
+    arm = cm_to_px(CUT_MARK_ARM_CM, dpi)
+    mark_px = max(2, cm_to_px(CUT_MARK_WIDTH_CM, dpi))
+    mhalf = mark_px // 2
+    left, right, top, bottom = min(xs), max(xs), min(ys), max(ys)
+    frame = mask["frame_rgba"].copy()
+    draw = ImageDraw.Draw(frame)
+    black = (0, 0, 0, 255)
+    for cy in ys:
+        for cx in xs:
+            draw.rectangle([max(left, cx - arm), cy - mhalf,
+                            min(right, cx + arm), cy - mhalf + mark_px - 1], fill=black)
+            draw.rectangle([cx - mhalf, max(top, cy - arm),
+                            cx - mhalf + mark_px - 1, min(bottom, cy + arm)], fill=black)
+    out = dict(mask)
+    out["frame_rgba"] = frame
+    return out
 
 
 def fast_crop_thumb(image_path, rotate_deg, target_w, target_h, max_dim=170,
@@ -693,6 +821,11 @@ class PolaroidApp:
         mask_box.pack(fill="x", **pad)
         mask_box.columnconfigure(0, weight=1)
 
+        # reforco escuro das linhas de corte nos encontros: a mesma opcao
+        # vale pra grade simples e pras folhas de ima em PSD
+        self.grid_marks = tk.BooleanVar(value=False)
+        self.mask_base = None  # mascara do PSD sem o reforco, pra poder ligar/desligar
+
         self.mask_path = tk.StringVar()
         ttk.Entry(mask_box, textvariable=self.mask_path).grid(row=0, column=0, sticky="we", padx=(8, 4), pady=(8, 4))
         ttk.Button(mask_box, text="Escolher...", command=self._pick_psd).grid(row=0, column=1, padx=(0, 8), pady=(8, 4))
@@ -713,12 +846,17 @@ class PolaroidApp:
                                           justify="left", wraplength=250, style="Muted.TLabel")
         self.mask_info_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
 
+        ttk.Checkbutton(
+            mask_box, text="Reforcar linhas onde se encontram\n(trecho mais escuro: onde apoiar a regua)",
+            variable=self.grid_marks,
+        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
+
         if not PSD_AVAILABLE:
             ttk.Label(
                 mask_box,
                 text="Falta instalar: pip install psd-tools numpy scipy",
                 foreground="#B0402C", wraplength=250,
-            ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
+            ).grid(row=5, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
 
         # ---- Modo grade simples: container ----
         self.grid_frame = ttk.Frame(left_col)
@@ -736,8 +874,8 @@ class PolaroidApp:
         grid_sizes = ttk.LabelFrame(self.grid_frame, text="Folha e grade (cm)")
         grid_sizes.pack(fill="x", **pad)
 
-        self.grid_sheet_w = tk.StringVar(value="21")
-        self.grid_sheet_h = tk.StringVar(value="15")
+        self.grid_sheet_w = tk.StringVar(value="21,6")
+        self.grid_sheet_h = tk.StringVar(value="15,2")
         self.grid_cols = tk.StringVar(value="3")
         self.grid_rows = tk.StringVar(value="2")
         self.grid_photo_w = tk.StringVar(value="6,60")
@@ -752,11 +890,12 @@ class PolaroidApp:
         self._labeled_entry(grid_sizes, "Foto - largura", self.grid_photo_w, 4)
         self._labeled_entry(grid_sizes, "Foto - altura", self.grid_photo_h, 5)
         self._labeled_entry(grid_sizes, "Borda por foto", self.grid_border, 6)
+        self._labeled_entry(grid_sizes, "Espaco entre fotos", self.grid_gap, 7)
         ttk.Label(grid_sizes, text=f"Resolucao: sempre {EXPORT_DPI} dpi na exportacao",
-                  style="Muted.TLabel").grid(row=7, column=0, columnspan=2, sticky="w", padx=8, pady=(2, 6))
+                  style="Muted.TLabel").grid(row=8, column=0, columnspan=2, sticky="w", padx=8, pady=(2, 6))
 
         self.grid_info_label = ttk.Label(grid_sizes, text="", justify="left", style="Muted.TLabel", wraplength=260)
-        self.grid_info_label.grid(row=8, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 8))
+        self.grid_info_label.grid(row=9, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 8))
 
         # ---- Linha de corte (o "risco" que marca onde cada foto termina) ----
         guide_box = ttk.LabelFrame(self.grid_frame, text="Linha de corte")
@@ -781,6 +920,12 @@ class PolaroidApp:
                                             highlightthickness=1, highlightbackground=BORDER)
         self.grid_guide_swatch.pack(side="left", padx=(0, 6))
         ttk.Button(guide_color_row, text="Escolher cor...", command=self._pick_grid_guide_color).pack(side="left")
+
+        ttk.Checkbutton(
+            guide_box, text="Reforcar linhas onde se encontram\n(trecho mais escuro: onde apoiar a regua)",
+            variable=self.grid_marks,
+        ).pack(anchor="w", padx=8, pady=(0, 8))
+        self.grid_marks.trace_add("write", lambda *a: self._on_marks_toggle())
 
         for entry_var in (self.grid_sheet_w, self.grid_sheet_h, self.grid_cols, self.grid_rows,
                           self.grid_photo_w, self.grid_photo_h, self.grid_border, self.grid_gap,
@@ -975,6 +1120,10 @@ class PolaroidApp:
         self.grid_guide_width.set(preset.get("guide_width", "0"))
         self.grid_guide_color = preset.get("guide_color", "#999999")
         self.grid_guide_swatch.configure(bg=self.grid_guide_color)
+        self.grid_marks.set(preset.get("marks", False))
+        self.fit_mode.set(preset.get("fit", "contain"))
+        self.rotate_deg.set(preset.get("rotate", "auto"))
+        self.photo_rotations = {}
         self._recalc(preview=True, rebuild_gallery=True)
 
     def _load_mask(self):
@@ -986,12 +1135,21 @@ class PolaroidApp:
             messagebox.showerror("Erro", f"Arquivo nao encontrado:\n{path}")
             return
         try:
-            self.mask_data = load_psd_mask(path)
+            base = prepare_sheet_mask(load_psd_mask(path))
         except Exception as e:
             self.mask_data = None
+            self.mask_base = None
             self.mask_info_label.configure(text=f"Erro ao carregar: {e}")
             self._log(f"Erro ao carregar mascara: {e}")
             return
+        self.mask_base = base
+        # folha de ima (varias fotos e linhas de corte no PSD): o reforco
+        # escuro dos encontros ja vem ligado
+        xs, ys = base.get("art_lines", ([], []))
+        self._marks_guard = True
+        self.grid_marks.set(len(xs) >= 2 and len(ys) >= 2)
+        self._marks_guard = False
+        self._apply_mask_marks()
 
         # fotos em pe' (retrato) colocadas numa mascara de polaroide
         # precisam girar 270 pra encaixar certo (convencao dos gabaritos
@@ -1024,6 +1182,20 @@ class PolaroidApp:
         self._log(f"Mascara carregada: {os.path.basename(path)} ({len(slots)} slot(s))")
         self._recalc(preview=True, rebuild_gallery=True)
 
+    def _apply_mask_marks(self):
+        """Monta self.mask_data a partir do PSD carregado, com ou sem o
+        reforco escuro nos encontros das linhas de corte."""
+        if self.mask_base is None:
+            return
+        self.mask_data = with_cut_marks(self.mask_base) if self.grid_marks.get() else self.mask_base
+
+    def _on_marks_toggle(self):
+        if getattr(self, "_marks_guard", False):
+            return
+        if self.mode.get() == "mask":
+            self._apply_mask_marks()
+        self._recalc(preview=True)
+
     def _read_grid_sizes(self):
         sheet_w = parse_float(self.grid_sheet_w.get())
         sheet_h = parse_float(self.grid_sheet_h.get())
@@ -1032,7 +1204,7 @@ class PolaroidApp:
         photo_w = parse_float(self.grid_photo_w.get())
         photo_h = parse_float(self.grid_photo_h.get())
         border = parse_float(self.grid_border.get())
-        gap = 0.0  # fotos sempre coladas, sem espaco entre elas
+        gap = parse_float(self.grid_gap.get())  # 0 = fotos coladas (so' a BOLA tem espaco)
         dpi = EXPORT_DPI  # todo projeto e' exportado em 300 dpi, sempre
         guide_width = parse_float(self.grid_guide_width.get())
         return sheet_w, sheet_h, cols, rows, photo_w, photo_h, border, gap, dpi, guide_width
@@ -1053,6 +1225,7 @@ class PolaroidApp:
             self.mask_data = build_grid_mask(
                 sheet_w, sheet_h, cols, rows, photo_w, photo_h, border, gap, dpi, self.bg_color,
                 guide_color=self.grid_guide_color, guide_width_cm=guide_width,
+                marks=self.grid_marks.get(),
             )
         except ValueError as e:
             self.mask_data = None
