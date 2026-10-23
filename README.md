@@ -30,14 +30,17 @@ Tem três modos:
   encaixe e a rotação padrão: BOLA (foto 6,6x6,6, 0,5 cm de espaço entre
   elas) preenche e corta, sem girar; Botão (foto 5,6x5,6) encaixa a foto
   inteira, sem girar; Imã 15x21 novo encaixa inteira e gira as fotos em pé.
-- **Folha sempre 21,6 x 15,2 cm** (o "15x21" do dia a dia): todos os
-  atalhos já saem nesse tamanho, e as folhas de ímã em PSD (20,3 x 15,2)
-  ganham margem branca até chegar nele, sem mudar o tamanho dos ímãs.
-- **Reforço escuro nas linhas de corte** (todos os itens de ímã: Imã 15x21
-  novo e as Folhas Ima 4x em PSD): um trecho de 0,6 cm da própria linha, em
-  preto, formando "L" nos cantos, "T" nas bordas e "+" no meio — marca onde
-  apoiar a régua e some junto com o corte. Vem ligado nesses itens; dá pra
-  ligar/desligar em "Reforçar linhas onde se encontram".
+- **Folha de ímã 20,3 x 15,2 cm, só dois cortes**: no atalho Imã 15x21 novo
+  (e nos botões Folha Ima Horizontal/Vertical 4x, que agora usam essa mesma
+  montagem) cada ímã ocupa exatamente 1/4 da folha (10,15 x 7,6 cm, borda
+  branca de 0,28 cm em volta da foto). Não há linha na borda externa — só o
+  corte em cruz no meio (um vertical e um horizontal). BOLA e Botão usam
+  folha de 21,6 x 15,2.
+- **Reforço escuro nas linhas de corte**: um trecho de 0,6 cm da própria
+  linha, em preto, onde as linhas se encontram — marca onde apoiar a régua
+  e some junto com o corte. No ímã de 4 fotos sobra só o "+" do meio. Dá
+  pra ligar/desligar em "Reforçar linhas onde se encontram" e escolher se
+  as linhas também aparecem na borda externa.
 
 ## Baixar pronto (sem instalar Python)
 
